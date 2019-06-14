@@ -1,3 +1,5 @@
+Sys.setenv(JAVA_HOME="C:/Program Files/Java/jdk-11.0.3/")
+
 library(shiny)
 library(dplyr)
 library(shinythemes)
@@ -5,7 +7,6 @@ library(DT)
 library(plotly)
 library(crosstalk)
 library(rcdk)
-library(enviGCMS)
 
 shinyUI(navbarPage(
   "MDPlotR: interactive mass defect plots",
@@ -41,9 +42,9 @@ shinyUI(navbarPage(
                  inline = TRUE
                ),
                checkboxInput('ins', 'Show intensity as size', F),
+               checkboxInput("show_leg", "Show plot legends", T),
                uiOutput("plotctr"),
                uiOutput("plotctr2"),
-               uiOutput("select1"),
                uiOutput("slide1"),
                uiOutput("slide2"),
                uiOutput("slide3"),
@@ -51,7 +52,10 @@ shinyUI(navbarPage(
              ),
              mainPanel(
                uiOutput("plot"),
-               DTOutput("DT1"),
+               DTOutput("x1"),
+               fluidRow(column(
+                 3, downloadButton("x3", "Download Filtered Data")
+               )),
                tags$br(),
                
                # Using Shinyjs to open websites
@@ -102,7 +106,7 @@ shinyUI(navbarPage(
                    h4("Equation"),
                    width = 3),
       mainPanel(
-        #withMathJax(includeMarkdown("instructions.md"))
+        withMathJax(includeMarkdown("instructions.md"))
       )
     )
   )

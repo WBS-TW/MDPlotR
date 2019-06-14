@@ -1,432 +1,34 @@
+Sys.setenv(JAVA_HOME="C:/Program Files/Java/jdk-11.0.3/")
+
 library(shiny)
 library(dplyr)
 library(shinythemes)
 library(DT)
 library(plotly)
 library(crosstalk)
-library(shinyjs)
 library(rcdk)
+library(enviGCMS)
 
 shinyServer(function(input, output, session) {
   MD_data <- reactive({
     #  require that the input is available
     req(input$file1)
     df <- read.csv(input$file1$datapath)
-    df$RMD <- round((df$mz - round(df$mz)) / df$mz * 10 ^ 6)
-    df$MD <- round((df$mz - round(df$mz)) * 10 ^ 3)
+    df$RMD <- round((round(df$mz) - df$mz) / df$mz * 10 ^ 6)
+    df$OMD <- round((round(df$mz) - df$mz) * 10 ^ 3)
     # high order mass defect computation
     
-    getorder <- function(input) {
-      if (grepl(',', input)) {
-        name <- unlist(strsplit(input, ','))
-      } else{
-        name <- input
-      }
-      return(name)
-    }
+    mdh1 <- getmdh(df$mz,cus = input$cus1)
+    mdh2 <- getmdh(df$mz,cus = input$cus2)
+    # change colname
+    name1 <- paste0(colnames(mdh1),'_p1')
+    name2 <- paste0(colnames(mdh2),'_p2')
+    mdh <- cbind(mdh1[,-1],mdh2[,-1])
+    colnames(mdh) <- c(name1[-1],name2[-1])
     
-    getnum <- function(data) {
-      if (grepl('-', data)) {
-        name <- unlist(strsplit(data, '-'))
-        iso1 <-
-          rcdk::get.isotopes.pattern(rcdk::get.formula(name[1]))
-        iso2 <-
-          rcdk::get.isotopes.pattern(rcdk::get.formula(name[2]))
-        cus <-
-          as.numeric(iso1[max(iso1[, 2]), 1]) - as.numeric(iso2[max(iso2[, 2]), 1])
-      } else{
-        iso <- rcdk::get.isotopes.pattern(rcdk::get.formula(data))
-        cus <-
-          as.numeric(iso[max(iso[, 2]), 1])
-      }
-      return(cus)
-    }
+    df <- cbind(df,mdh)
     
-    temp <- getorder(input$cus1)
-    cus <- NULL
-    for (i in 1:length(temp)) {
-      cus <- c(cus, getnum(temp[i]))
-    }
-    
-    if (length(cus) == 2) {
-      omd <- df$mz * round(cus[1]) / cus[1]
-      sumd <- cus[2] * round(cus[1]) / cus[1]
-      if (input$mdr1 == 'round') {
-        df$MD1_1 <-
-          round(omd - round(omd),
-                digits = 6)
-        md1_2 <- round(sumd - round(sumd),
-                       digits = 6)
-      } else if (input$mdr1 == 'floor') {
-        df$MD1_1 <-
-          round(omd - floor(omd),
-                digits = 6)
-        md1_2 <- round(sumd - floor(sumd),
-                       digits = 6)
-      } else{
-        df$MD1_1 <-
-          round(omd - ceiling(omd),
-                digits = 6)
-        md1_2 <- round(sumd - ceiling(sumd),
-                       digits = 6)
-      }
-      smd <-  df$MD1_1 / md1_2
-      if (input$mdr1 == 'round') {
-        df$MD1_2 <-
-          round(smd - round(smd),
-                digits = 6)
-      } else if (input$mdr1 == 'floor') {
-        df$MD1_2 <-
-          round(smd - floor(smd),
-                digits = 6)
-      } else{
-        df$MD1_2 <-
-          round(smd - ceiling(smd),
-                digits = 6)
-      }
-    } else if (length(cus) == 3) {
-      omd <- df$mz * round(cus[1]) / cus[1]
-      sumd <- cus[2] * round(cus[1]) / cus[1]
-      tumd <- cus[3] * round(cus[1]) / cus[1]
-      
-      if (input$mdr1 == 'round') {
-        df$MD1_1 <-
-          round(omd - round(omd),
-                digits = 6)
-        md1_2 <- round(sumd - round(sumd),
-                       digits = 6)
-        md1_3 <- round(tumd - round(tumd),
-                       digits = 6)
-      } else if (input$mdr1 == 'floor') {
-        df$MD1_1 <-
-          round(omd - floor(omd),
-                digits = 6)
-        md1_2 <- round(sumd - floor(sumd),
-                       digits = 6)
-        md1_3 <- round(tumd - round(tumd),
-                       digits = 6)
-      } else{
-        df$MD1_1 <-
-          round(omd - ceiling(omd),
-                digits = 6)
-        md1_2 <- round(sumd - ceiling(sumd),
-                       digits = 6)
-        md1_3 <- round(tumd - round(tumd),
-                       digits = 6)
-      }
-      smd <-  df$MD1_1 / md1_2
-      tsmd <- md1_3 / md1_2
-      
-      if (input$mdr1 == 'round') {
-        df$MD1_2 <-
-          round(smd - round(smd),
-                digits = 6)
-        md1_3 <- round(tsmd - ceiling(tsmd),
-                       digits = 6)
-      } else if (input$mdr1 == 'floor') {
-        df$MD1_2 <-
-          round(smd - floor(smd),
-                digits = 6)
-        md1_3 <- round(tsmd - ceiling(tsmd),
-                       digits = 6)
-      } else{
-        df$MD1_2 <-
-          round(smd - ceiling(smd),
-                digits = 6)
-        md1_3 <- round(tsmd - ceiling(tsmd),
-                       digits = 6)
-      }
-      tmd <- df$MD1_2 / md1_3
-      if (input$mdr1 == 'round') {
-        df$MD1_3 <-
-          round(tmd - round(tmd),
-                digits = 6)
-      } else if (input$mdr1 == 'floor') {
-        df$MD1_3 <-
-          round(tmd - floor(tmd),
-                digits = 6)
-      } else{
-        df$MD1_3 <-
-          round(smd - ceiling(smd),
-                digits = 6)
-      }
-    } else if (length(cus) > 3) {
-      message("Sorry, only the first three unit would be used.")
-      omd <- df$mz * round(cus[1]) / cus[1]
-      sumd <- cus[2] * round(cus[1]) / cus[1]
-      tumd <- cus[3] * round(cus[1]) / cus[1]
-      
-      if (input$mdr1 == 'round') {
-        df$MD1_1 <-
-          round(omd - round(omd),
-                digits = 6)
-        md1_2 <- round(sumd - round(sumd),
-                       digits = 6)
-        md1_3 <- round(tumd - round(tumd),
-                       digits = 6)
-      } else if (input$mdr1 == 'floor') {
-        df$MD1_1 <-
-          round(omd - floor(omd),
-                digits = 6)
-        md1_2 <- round(sumd - floor(sumd),
-                       digits = 6)
-        md1_3 <- round(tumd - round(tumd),
-                       digits = 6)
-      } else{
-        df$MD1_1 <-
-          round(omd - ceiling(omd),
-                digits = 6)
-        md1_2 <- round(sumd - ceiling(sumd),
-                       digits = 6)
-        md1_3 <- round(tumd - round(tumd),
-                       digits = 6)
-      }
-      smd <-  df$MD1_1 / md1_2
-      tsmd <- md1_3 / md1_2
-      
-      if (input$mdr1 == 'round') {
-        df$MD1_2 <-
-          round(smd - round(smd),
-                digits = 6)
-        md1_3 <- round(tsmd - ceiling(tsmd),
-                       digits = 6)
-      } else if (input$mdr1 == 'floor') {
-        df$MD1_2 <-
-          round(smd - floor(smd),
-                digits = 6)
-        md1_3 <- round(tsmd - ceiling(tsmd),
-                       digits = 6)
-      } else{
-        df$MD1_2 <-
-          round(smd - ceiling(smd),
-                digits = 6)
-        md1_3 <- round(tsmd - ceiling(tsmd),
-                       digits = 6)
-      }
-      tmd <- df$MD1_2 / md1_3
-      if (input$mdr1 == 'round') {
-        df$MD1_3 <-
-          round(tmd - round(tmd),
-                digits = 6)
-      } else if (input$mdr1 == 'floor') {
-        df$MD1_3 <-
-          round(tmd - floor(tmd),
-                digits = 6)
-      } else{
-        df$MD1_3 <-
-          round(smd - ceiling(smd),
-                digits = 6)
-      }
-    } else{
-      omd <- df$mz * round(cus) / cus
-      if (input$mdr1 == 'round') {
-        df$MD1 <-
-          round(omd - round(omd),
-                digits = 6)
-      } else if (input$mdr1 == 'floor') {
-        df$MD1 <-
-          round(omd - floor(omd),
-                digits = 6)
-      } else{
-        df$MD1 <-
-          round(omd - ceiling(omd),
-                digits = 6)
-      }
-    }
-    
-    temp <- getorder(input$cus2)
-    cus <- NULL
-    for (i in 1:length(temp)) {
-      cus <- c(cus, getnum(temp[i]))
-    }
-    if (length(cus) == 2) {
-      omd <- df$mz * round(cus[1]) / cus[1]
-      sumd <- cus[2] * round(cus[1]) / cus[1]
-      if (input$mdr2 == 'round') {
-        df$MD2_1 <-
-          round(omd - round(omd),
-                digits = 6)
-        md2_2 <- round(sumd - round(sumd),
-                       digits = 6)
-      } else if (input$mdr2 == 'floor') {
-        df$MD2_1 <-
-          round(omd - floor(omd),
-                digits = 6)
-        md2_2 <- round(sumd - floor(sumd),
-                       digits = 6)
-      } else{
-        df$MD2_1 <-
-          round(omd - ceiling(omd),
-                digits = 6)
-        md2_2 <- round(sumd - ceiling(sumd),
-                       digits = 6)
-      }
-      smd <-  df$MD2_1 / md2_2
-      if (input$mdr2 == 'round') {
-        df$MD2_2 <-
-          round(smd - round(smd),
-                digits = 6)
-      } else if (input$mdr2 == 'floor') {
-        df$MD2_2 <-
-          round(smd - floor(smd),
-                digits = 6)
-      } else{
-        df$MD2_2 <-
-          round(smd - ceiling(smd),
-                digits = 6)
-      }
-    } else if (length(cus) == 3) {
-      omd <- df$mz * round(cus[1]) / cus[1]
-      sumd <- cus[2] * round(cus[1]) / cus[1]
-      tumd <- cus[3] * round(cus[1]) / cus[1]
-      
-      if (input$mdr2 == 'round') {
-        df$MD2_1 <-
-          round(omd - round(omd),
-                digits = 6)
-        md2_2 <- round(sumd - round(sumd),
-                       digits = 6)
-        md2_3 <- round(tumd - round(tumd),
-                       digits = 6)
-      } else if (input$mdr2 == 'floor') {
-        df$MD2_1 <-
-          round(omd - floor(omd),
-                digits = 6)
-        md2_2 <- round(sumd - floor(sumd),
-                       digits = 6)
-        md2_3 <- round(tumd - round(tumd),
-                       digits = 6)
-      } else{
-        df$MD2_1 <-
-          round(omd - ceiling(omd),
-                digits = 6)
-        md2_2 <- round(sumd - ceiling(sumd),
-                       digits = 6)
-        md2_3 <- round(tumd - round(tumd),
-                       digits = 6)
-      }
-      smd <-  df$MD2_1 / md2_2
-      tsmd <- md2_3 / md2_2
-      
-      if (input$mdr2 == 'round') {
-        df$MD2_2 <-
-          round(smd - round(smd),
-                digits = 6)
-        md2_3 <- round(tsmd - ceiling(tsmd),
-                       digits = 6)
-      } else if (input$mdr2 == 'floor') {
-        df$MD2_2 <-
-          round(smd - floor(smd),
-                digits = 6)
-        md2_3 <- round(tsmd - ceiling(tsmd),
-                       digits = 6)
-      } else{
-        df$MD2_2 <-
-          round(smd - ceiling(smd),
-                digits = 6)
-        md2_3 <- round(tsmd - ceiling(tsmd),
-                       digits = 6)
-      }
-      tmd <- df$MD2_2 / md2_3
-      if (input$mdr2 == 'round') {
-        df$MD2_3 <-
-          round(tmd - round(tmd),
-                digits = 6)
-      } else if (input$mdr2 == 'floor') {
-        df$MD2_3 <-
-          round(tmd - floor(tmd),
-                digits = 6)
-      } else{
-        df$MD2_3 <-
-          round(smd - ceiling(smd),
-                digits = 6)
-      }
-    } else if (length(cus) > 3) {
-      message("Sorry, only the first three unit would be used.")
-      omd <- df$mz * round(cus[1]) / cus[1]
-      sumd <- cus[2] * round(cus[1]) / cus[1]
-      tumd <- cus[3] * round(cus[1]) / cus[1]
-      
-      if (input$mdr2 == 'round') {
-        df$MD2_1 <-
-          round(omd - round(omd),
-                digits = 6)
-        md2_2 <- round(sumd - round(sumd),
-                       digits = 6)
-        md2_3 <- round(tumd - round(tumd),
-                       digits = 6)
-      } else if (input$mdr2 == 'floor') {
-        df$MD2_1 <-
-          round(omd - floor(omd),
-                digits = 6)
-        md2_2 <- round(sumd - floor(sumd),
-                       digits = 6)
-        md2_3 <- round(tumd - round(tumd),
-                       digits = 6)
-      } else{
-        df$MD2_1 <-
-          round(omd - ceiling(omd),
-                digits = 6)
-        md2_2 <- round(sumd - ceiling(sumd),
-                       digits = 6)
-        md2_3 <- round(tumd - round(tumd),
-                       digits = 6)
-      }
-      smd <-  df$MD2_1 / md2_2
-      tsmd <- md2_3 / md2_2
-      
-      if (input$mdr2 == 'round') {
-        df$MD2_2 <-
-          round(smd - round(smd),
-                digits = 6)
-        md2_3 <- round(tsmd - ceiling(tsmd),
-                       digits = 6)
-      } else if (input$mdr1 == 'floor') {
-        df$MD2_2 <-
-          round(smd - floor(smd),
-                digits = 6)
-        md2_3 <- round(tsmd - ceiling(tsmd),
-                       digits = 6)
-      } else{
-        df$MD2_2 <-
-          round(smd - ceiling(smd),
-                digits = 6)
-        md2_3 <- round(tsmd - ceiling(tsmd),
-                       digits = 6)
-      }
-      tmd <- df$MD2_2 / md2_3
-      if (input$mdr2 == 'round') {
-        df$MD2_3 <-
-          round(tmd - round(tmd),
-                digits = 6)
-      } else if (input$mdr1 == 'floor') {
-        df$MD2_3 <-
-          round(tmd - floor(tmd),
-                digits = 6)
-      } else{
-        df$MD2_3 <-
-          round(smd - ceiling(smd),
-                digits = 6)
-      }
-    } else{
-      omd <- df$mz * round(cus) / cus
-      if (input$mdr2 == 'round') {
-        df$MD2 <-
-          round(omd - round(omd),
-                digits = 6)
-      } else if (input$mdr2 == 'floor') {
-        df$MD2 <-
-          round(omd - floor(omd),
-                digits = 6)
-      } else{
-        df$MD2 <-
-          round(omd - ceiling(omd),
-                digits = 6)
-      }
-    }
-    return(df)
   })
-  
   # Filtering the intensity, mz, and rt
   output$slide1 <- renderUI({
     minZ <- min(MD_data()$intensity)
@@ -485,8 +87,7 @@ shinyServer(function(input, output, session) {
           selectInput(
             inputId = 'xvar1',
             label = 'X variable for plot',
-            choices = names(MD_data()),
-            selected = names(MD_data())[1]
+            choices = names(MD_data())
           )
         ),
         column(
@@ -494,8 +95,17 @@ shinyServer(function(input, output, session) {
           selectInput(
             inputId = 'yvar1',
             label = 'Y variable for plot',
-            choices = names(MD_data()),
-            selected = names(MD_data())[4]
+            choices = names(MD_data())
+          )
+        ),
+        column(
+          12,
+          selectInput(
+            inputId = 'zvar1',
+            label = 'Symbol variable for plot',
+            choices = list(`NULL` = 'NA',`Variable` = names(MD_data()))
+            ,
+            selected = 'NULL'
           )
         )
       )
@@ -538,6 +148,24 @@ shinyServer(function(input, output, session) {
             label = 'Y variable for Plot 2',
             choices = names(MD_data()),
             selected = names(MD_data())[4]
+          )
+        ),
+        column(
+          6,
+          selectInput(
+            inputId = 'zvar1',
+            label = 'Symbol variable for plot',
+            choices = list(`NULL` = 'NA',`Variable` = names(MD_data())),
+            selected = 'NULL'
+          )
+        ),
+        column(
+          6,
+          selectInput(
+            inputId = 'zvar2',
+            label = 'Symbol variable for plot 2',
+            choices = list(`NULL` = 'NA',`Variable` = names(MD_data())),
+            selected = 'NULL'
           )
         )
       )
@@ -597,6 +225,12 @@ shinyServer(function(input, output, session) {
     MDplot_x1 <-
       m[, input$xvar1]
     
+    if(input$zvar1 == 'NA'){
+      MDplot_z1 <- 1
+    }else{
+      MDplot_z1 <- m[, input$zvar1]
+    }
+    
     # Checkbox option for size of markers by intensity
     if (input$ins) {
       intensity <- m$intensity
@@ -608,20 +242,27 @@ shinyServer(function(input, output, session) {
       MDplot_x2 <-
         m[, input$xvar2]
       
-      
       MDplot_y2 <-
         m[, input$yvar2]
+      
+      if(input$zvar2 == 'NA'){
+        MDplot_z2 <- 1
+      }else{
+        MDplot_z2 <- m[, input$zvar2]
+      }
       
     }
     
     # highlight selected rows in the scatterplot
     output$DTPlot1 <- renderPlotly({
-      s <- input$DT1_rows_selected
+      s <- input$x1_rows_selected
       if (!length(s)) {
         p <- d %>%
           plot_ly(
             x = MDplot_x1,
             y = MDplot_y1,
+            symbol = MDplot_z1,
+            showlegend = input$show_leg,
             type = "scatter",
             size = intensity,
             mode = "markers",
@@ -647,7 +288,8 @@ shinyServer(function(input, output, session) {
           ) %>%
           highlight(
             "plotly_selected",
-            dynamic = TRUE
+            color = I('red'),
+            selected = attrs_selected(name = 'Filtered')
           )
       } else if (length(s)) {
         pp <- m %>%
@@ -655,6 +297,7 @@ shinyServer(function(input, output, session) {
           add_trace(
             x = MDplot_x1,
             y = MDplot_y1,
+            symbol = MDplot_z1,
             type = "scatter",
             size = intensity,
             mode = "markers",
@@ -705,13 +348,15 @@ shinyServer(function(input, output, session) {
     # Plot 2
     if (input$single == "Double") {
       output$DTPlot2 <- renderPlotly({
-        t <- input$DT1_rows_selected
+        t <- input$x1_rows_selected
         
         if (!length(t)) {
           p <- d %>%
             plot_ly(
               x = MDplot_x2,
               y = MDplot_y2,
+              symbol = MDplot_z2,
+              showlegend = input$show_leg,
               type = "scatter",
               size = intensity,
               mode = "markers",
@@ -737,7 +382,8 @@ shinyServer(function(input, output, session) {
             ) %>%
             highlight(
               "plotly_selected",
-              dynamic = TRUE
+              color = I('red'),
+              selected = attrs_selected(name = 'Filtered')
             )
         } else if (length(t)) {
           pp <- m %>%
@@ -745,6 +391,7 @@ shinyServer(function(input, output, session) {
             add_trace(
               x = MDplot_x2,
               y = MDplot_y2,
+              symbol = MDplot_z2,
               type = "scatter",
               size = intensity,
               mode = "markers",
@@ -793,18 +440,15 @@ shinyServer(function(input, output, session) {
       })
     }
     # highlight selected rows in the table
-    output$DT1 <- renderDT({
-      options(persistent = TRUE)
-      
+    output$x1 <- renderDT({
       T_out1 <- m[d$selection(), ]
-      
       dt <-
         DT::datatable(
           m,
+          editable = TRUE,
           rownames = FALSE,
           filter = "top"
-                  )
-      
+        )
       if (NROW(T_out1) == 0) {
         dt
       } else {
@@ -816,9 +460,9 @@ shinyServer(function(input, output, session) {
     output$x3 = downloadHandler(
       'MDplot-filtered.csv',
       content = function(file) {
-        s <- input$DT1_rows_selected
+        s <- input$x1_rows_selected
         if (length(s)) {
-          write.csv(m[s, , drop = F], file)
+          write.csv(m[s, , drop = FALSE], file)
         } else if (!length(s)) {
           write.csv(m[d$selection(), ], file)
         }
