@@ -7,7 +7,6 @@ library(DT)
 library(plotly)
 library(crosstalk)
 library(rcdk)
-library(enviGCMS)
 
 shinyUI(navbarPage(
   "MDPlotR: interactive mass defect plots",
