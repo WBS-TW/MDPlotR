@@ -242,7 +242,7 @@ getmdh <- function(mz,cus = c('CH2,H2'), method = 'round'){
 
 
 
-shinyServer(function(input, output, session) {
+function(input, output, session) {
   MD_data <- reactive({
     #  require that the input is available
     req(input$file1)
@@ -702,5 +702,13 @@ shinyServer(function(input, output, session) {
       }
     )
   })
+  
+  # Close the app when the session completes
+  if(!interactive()) {
+    session$onSessionEnded(function() {
+      stopApp()
+      q("no")
+    })
+  }
+  
 }
-)
