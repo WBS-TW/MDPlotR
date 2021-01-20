@@ -1,5 +1,3 @@
-Sys.setenv(JAVA_HOME="C:/Program Files/Java/jdk-11.0.3/")
-
 library(shiny)
 library(dplyr)
 library(shinythemes)
@@ -7,8 +5,10 @@ library(DT)
 library(plotly)
 library(crosstalk)
 library(rcdk)
+options(shiny.maxRequestSize=30*1024^2)
 
 
+# Initiate functions from EnviGCMS #
 getmass <- function(data) {
   if (grepl('-', data)) {
     name <- unlist(strsplit(data, '-'))
@@ -241,6 +241,7 @@ getmdh <- function(mz,cus = c('CH2,H2'), method = 'round'){
 }
 
 
+#-----------------------Shiny Server functon----------#
 
 function(input, output, session) {
   MD_data <- reactive({
