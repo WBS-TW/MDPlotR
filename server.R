@@ -5,7 +5,7 @@ library(DT)
 library(plotly)
 library(crosstalk)
 library(rcdk)
-options(shiny.maxRequestSize=30*1024^2)
+options(shiny.maxRequestSize=60*1024^2)
 
 
 # Initiate functions from EnviGCMS #
