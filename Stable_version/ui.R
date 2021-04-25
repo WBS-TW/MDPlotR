@@ -1,14 +1,10 @@
 library(shiny)
 library(dplyr)
-library(vroom)
 library(shinythemes)
 library(DT)
 library(plotly)
 library(crosstalk)
 library(rcdk)
-options(shiny.maxRequestSize=50*1024^2)
-
-
 
 shinyUI(navbarPage(
   "MDPlotR: interactive mass defect plots",
